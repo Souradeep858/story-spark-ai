@@ -5,7 +5,10 @@ const toggleFollow = catchAsync(async (req: Request, res: Response) => {
     ? req.params.authorId[0]
     : req.params.authorId;
 
-  const result = await UserService.toggleFollow(token, authorId);
+  const result = await UserService.toggleFollow(
+    token,
+    authorId as string
+  );
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -17,19 +20,24 @@ const toggleFollow = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getFollowStatus = catchAsync(async (req: Request, res: Response) => {
-  const token = await getToken(req);
+const getFollowStatus = catchAsync(
+  async (req: Request, res: Response) => {
+    const token = await getToken(req);
 
-  const authorId = Array.isArray(req.params.authorId)
-    ? req.params.authorId[0]
-    : req.params.authorId;
+    const authorId = Array.isArray(req.params.authorId)
+      ? req.params.authorId[0]
+      : req.params.authorId;
 
-  const result = await UserService.getFollowStatus(token, authorId);
+    const result = await UserService.getFollowStatus(
+      token,
+      authorId as string
+    );
 
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: "Follow status fetched successfully!",
-    data: result,
-  });
-});
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Follow status fetched successfully!",
+      data: result,
+    });
+  }
+);
