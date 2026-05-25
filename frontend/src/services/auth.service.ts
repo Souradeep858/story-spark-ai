@@ -43,8 +43,13 @@ export const isLoggedIn = () => {
 
   try {
     const decoded = decodedToken(authToken);
+
     return decoded?.exp ? decoded.exp > Date.now() / 1000 : false;
   } catch (error) {
+
+    return typeof decoded?.exp === "number" && decoded.exp > Date.now() / 1000;
+  } catch {
+
     return false;
   }
 };
