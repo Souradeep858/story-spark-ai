@@ -38,5 +38,16 @@ router.post(
   AiModelController.aiFreeModelAlternateEndings
 );
 
+// Remix Story
+router.post(
+  "/remix",
+  checkRequestLimit(),
+  AiModelController.aiModelRemix
+);
+// Remix Story Free
+router.post(
+  "/remix-free",
+  AiModelController.aiFreeModelRemix
+);
 export const AIModelRouter = router;
 
