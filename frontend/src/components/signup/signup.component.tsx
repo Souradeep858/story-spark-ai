@@ -327,6 +327,7 @@ const SignUpComponent = () => {
                 error={errors.password}
               />
 
+              {password?.length > 0 && (
               <div className="space-y-3 -mt-2">
                 <div
                   className="w-full h-2 bg-slate-700 rounded-full overflow-hidden"
@@ -364,6 +365,7 @@ const SignUpComponent = () => {
                   })}
                 </ul>
               </div>
+)}
 
               <SSInput
                 label="Confirm Password"
