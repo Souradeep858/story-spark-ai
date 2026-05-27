@@ -258,6 +258,18 @@ const NavListComponent: React.FC = () => {
                 </>
               )}
             </NavLink>
+
+            <NavLink to="/story-inspiration" className={({ isActive }) => getMobileLinkClass(isActive)}>
+             {({ isActive }) => (
+    <>
+               {isActive && (
+                <span className="w-2 h-2 bg-custom rounded-full mr-2.5 animate-pulse shadow-[0_0_8px_#3b82f6]" />
+           )}
+           INSPIRING STORIES
+    </>
+     )}
+</NavLink>
+
             <NavLink to="/analytics" className={({ isActive }) => getMobileLinkClass(isActive)}>
               {({ isActive }) => (
                 <>
@@ -274,6 +286,17 @@ const NavListComponent: React.FC = () => {
                 </>
               )}
             </NavLink>
+
+            <NavLink to="/contact-us" className={({ isActive }) => getMobileLinkClass(isActive)}>
+              {({ isActive }) => (
+    <>
+               {isActive && (
+                 <span className="w-2 h-2 bg-custom rounded-full mr-2.5 animate-pulse shadow-[0_0_8px_#3b82f6]" />
+               )}
+              CONTACT US
+    </>
+          )}
+</NavLink>
             <NavLink to="/community" className={({ isActive }) => getMobileLinkClass(isActive)}>
               {({ isActive }) => (
                 <>
