@@ -29,15 +29,15 @@ interface StoriesComponentProps {
   isLogin: boolean;
   setStories: (stories: IStories[]) => void;
   onPublishSuccess?: () => void;
-  isLoading?: boolean;
+  setSelectedStoryIndex: React.Dispatch<React.SetStateAction<number | null>>;
 }
 
 const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
   stories,
   isLogin,
   setStories,
-  isLoading,
   onPublishSuccess,
+  setSelectedStoryIndex,
 }) => {
   // Start with a clean state that adapts dynamically
   const [selectedStory, setSelectedStory] = useState<IStories | null>(null);
@@ -46,6 +46,8 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
   const [newTopicTitle, setNewTopicTitle] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [isCopied, setIsCopied] = useState<boolean>(false);
+  const [selectedParagraphIndex, setSelectedParagraphIndex] =
+    useState<number | null>(null);
   const [createPost] = useCreatePostMutation();
   const { data: profile } = useGetProfileInfoQuery(undefined, { skip: !isLogin });
   // Alternate ending state & hooks
@@ -69,7 +71,82 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
       }));
     }
   }, [selectedStory, originalStoryContent]);
+  const handleRegenerateParagraph = async (
+    paragraphIndex: number
+  ) => {
+    if (!selectedStory) return;
 
+    try {
+      setSelectedParagraphIndex(paragraphIndex);
+
+      const paragraphs =
+        selectedStory.content.split("\n\n");
+
+      const targetParagraph =
+        paragraphs[paragraphIndex];
+
+      toast.loading("Regenerating section...", {
+        id: "regen-section",
+      });
+
+      const payload = {
+        prompt: `
+Rewrite only this section of the story while preserving the same tone, characters, and continuity.
+
+Section:
+${targetParagraph}
+      `,
+        wordLength: 120,
+      };
+
+      const generationRequest = isLogin
+        ? generateAlternateEndings(payload as any)
+        : generateFreeAlternateEndings(payload as any);
+
+      const res = await generationRequest.unwrap();
+
+      if (res?.data?.[0]?.ending) {
+        paragraphs[paragraphIndex] =
+          res.data[0].ending;
+
+        const updatedContent =
+          paragraphs.join("\n\n");
+
+        const updatedStory = {
+          ...selectedStory,
+          content: updatedContent,
+        };
+
+        setSelectedStory(updatedStory);
+
+        setStories(
+          stories.map((story) =>
+            story.uuid === selectedStory.uuid
+              ? updatedStory
+              : story
+          )
+        );
+
+        toast.success(
+          "Section regenerated successfully!",
+          {
+            id: "regen-section",
+          }
+        );
+      }
+    } catch (error) {
+      console.error(error);
+
+      toast.error(
+        "Failed to regenerate section.",
+        {
+          id: "regen-section",
+        }
+      );
+    } finally {
+      setSelectedParagraphIndex(null);
+    }
+  };
   const handleGenerateAlternateEndings = async () => {
     if (!selectedStory) return;
     setIsGeneratingEndings(true);
@@ -80,11 +157,11 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
         content: originalStoryContent[selectedStory.uuid] || selectedStory.content,
         tag: selectedStory.tag,
       };
-      
+
       const generationRequest = isLogin
         ? generateAlternateEndings(payload)
         : generateFreeAlternateEndings(payload);
-        
+
       const res = await generationRequest.unwrap();
       if (res && res.data) {
         setEndingsCache((prev) => ({
@@ -145,28 +222,32 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
     }
   }, [stories]);
 
-useEffect(() => {
-  const autoSaveStory = async () => {
-    if (!selectedStory) return;
+  useEffect(() => {
+    const autoSaveStory = async () => {
+      if (!selectedStory) return;
 
-    const post: IPost = {
-      ...selectedStory,
-      topic: selectTopics,
+      const post: IPost = {
+        ...selectedStory,
+        topic: selectTopics,
+      };
+
+      try {
+        await createPost(post).unwrap();
+        toast.success("Story auto-saved!");
+      } catch (error) {
+        console.error("Auto-save failed", error);
+      }
     };
 
-    try {
-      await createPost(post).unwrap();
-      toast.success("Story auto-saved!");
-    } catch (error) {
-      console.error("Auto-save failed", error);
-    }
-  };
+    autoSaveStory();
+  }, [selectedStory, isLogin, selectTopics, createPost]);
 
-  autoSaveStory();
-}, [selectedStory, isLogin, selectTopics, createPost]);
-
-  const handelStorySelection = (story: IStories) => {
+  const handelStorySelection = (
+    story: IStories,
+    index: number
+  ) => {
     setSelectedStory(story);
+    setSelectedStoryIndex(index);
   };
 
   const handleTopicClick = (index: number) => {
@@ -487,14 +568,14 @@ ${content}
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      
+
       const fileName = title.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "story";
       link.setAttribute("download", `${fileName}.md`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       toast.success("Markdown downloaded!");
     } catch (error) {
       console.error(error);
@@ -539,13 +620,7 @@ ${content}
     return Math.max(1, Math.ceil(words / 200));
   };
 
-if (isLoading) {
-  return (
-    <div className="flex items-center justify-center py-20">
-      <StoryGeneratingAnimation />
-    </div>
-  );
-}
+
   if (!selectedStory) {
     return null;
   }
@@ -574,15 +649,14 @@ if (isLoading) {
             <div className="flex justify-start sm:justify-end">
               <div className="flex -space-x-5">
                 {stories && stories.length > 0 && (
-                  stories.map((story) => (
+                  stories.map((story, index) => (
                     <button
                       key={story.uuid}
-                      className={`relative w-16 h-16 rounded-full border-2 ${
-                        selectedStory?.uuid === story.uuid
-                          ? "border-blue-500 scale-110"
-                          : "border-white"
-                      } hover:scale-110 transition-transform duration-200 focus:outline-none`}
-                      onClick={() => handelStorySelection(story)}
+                      className={`relative w-16 h-16 rounded-full border-2 ${selectedStory?.uuid === story.uuid
+                        ? "border-blue-500 scale-110"
+                        : "border-white"
+                        } hover:scale-110 transition-transform duration-200 focus:outline-none`}
+                      onClick={() => handelStorySelection(story, index)}
                     >
                       <img
                         src={story.imageURL}
@@ -599,7 +673,7 @@ if (isLoading) {
           <div className="bg-slate-800/80 backdrop-blur-xl border border-slate-700/50 p-8 rounded-2xl shadow-2xl relative overflow-hidden">
             <div className="absolute top-[-50px] right-[-50px] w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
             <div className="absolute bottom-[-50px] left-[-50px] w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
-            
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <h3 className="text-xl font-bold text-slate-200 relative z-10">
                 Generated Story
@@ -632,9 +706,8 @@ if (isLoading) {
                 <button
                   type="button"
                   id="publish-story-btn"
-                  className={`rounded-lg px-5 py-2 font-semibold flex items-center space-x-2 cursor-pointer bg-blue-600 text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-                    loading ? "" : "hover:bg-blue-500 hover:shadow-lg active:scale-95"
-                  }`}
+                  className={`rounded-lg px-5 py-2 font-semibold flex items-center space-x-2 cursor-pointer bg-blue-600 text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${loading ? "" : "hover:bg-blue-500 hover:shadow-lg active:scale-95"
+                    }`}
                   onClick={handelPublishStory}
                   disabled={loading || !selectedStory}
                 >
@@ -643,7 +716,33 @@ if (isLoading) {
               </div>
             </div>
             <div id="story-content" className="prose prose-invert max-w-none text-slate-300 leading-relaxed tracking-wide relative z-10">
-              <p className="break-words">{selectedStory.content}</p>
+              <div className="space-y-5">
+                {selectedStory.content
+                  .split("\n\n")
+                  .map((paragraph, index) => (
+                    <div
+                      key={index}
+                      className={`relative group rounded-lg p-3 transition-all ${selectedParagraphIndex === index
+                        ? "bg-slate-700/40 border border-indigo-400"
+                        : ""
+                        }`}
+                    >
+                      <p className="break-words whitespace-pre-wrap">
+                        {paragraph}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleRegenerateParagraph(index)
+                        }
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-indigo-600 hover:bg-indigo-500 px-2 py-1 rounded text-white"
+                      >
+                        🔄 Regenerate Section
+                      </button>
+                    </div>
+                  ))}
+              </div>
             </div>
           </div>
           <div className="mt-7">
@@ -717,7 +816,7 @@ if (isLoading) {
             {selectedStory && (
               <div className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-xl p-6 mt-8 relative overflow-hidden">
                 <div className="absolute top-[-50px] right-[-50px] w-48 h-48 bg-purple-500/5 rounded-full blur-3xl pointer-events-none"></div>
-                
+
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                   <div>
                     <h3 className="text-xl font-bold text-slate-200 flex items-center gap-2">
@@ -759,17 +858,16 @@ if (isLoading) {
                         const hasEndings = endingsCache[selectedStory.uuid] || [];
                         const endingData = hasEndings.find((e) => e.style === s.name);
                         const isApplied = endingData && selectedStory.content === endingData.fullStory;
-                        
+
                         return (
                           <button
                             key={s.name}
                             type="button"
                             onClick={() => setActiveEndingTab(s.name)}
-                            className={`px-5 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
-                              activeEndingTab === s.name
-                                ? "border-purple-500 text-purple-400 bg-purple-500/5"
-                                : "border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-700"
-                            }`}
+                            className={`px-5 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-all cursor-pointer ${activeEndingTab === s.name
+                              ? "border-purple-500 text-purple-400 bg-purple-500/5"
+                              : "border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-700"
+                              }`}
                           >
                             <span>{s.name}</span>
                             {isApplied && (
@@ -785,9 +883,9 @@ if (isLoading) {
                       const currentEndings = endingsCache[selectedStory.uuid] || [];
                       const currentEndingData = currentEndings.find((e) => e.style === activeEndingTab);
                       if (!currentEndingData) return null;
-                      
+
                       const isCurrentlyApplied = selectedStory.content === currentEndingData.fullStory;
-                      
+
                       return (
                         <div className="bg-slate-900/40 rounded-xl p-6 border border-slate-700/30">
                           <div className="flex justify-between items-center mb-4">
@@ -810,12 +908,12 @@ if (isLoading) {
                               )}
                             </div>
                           </div>
-                          
+
                           <div className="space-y-4">
                             <div className="bg-slate-950/60 p-5 rounded-xl border border-slate-800 leading-relaxed text-slate-300 text-sm md:text-base italic shadow-inner whitespace-pre-wrap">
                               <p>{currentEndingData.ending}</p>
                             </div>
-                            
+
                             <div>
                               <details className="group border border-slate-800 rounded-lg overflow-hidden bg-slate-950/20">
                                 <summary className="list-none flex items-center justify-between p-3 text-xs font-bold text-slate-400 hover:text-slate-200 cursor-pointer select-none">
