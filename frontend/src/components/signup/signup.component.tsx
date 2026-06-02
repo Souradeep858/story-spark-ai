@@ -92,6 +92,7 @@ const SignUpComponent = () => {
     handleSubmit,
     watch,
     setValue,
+    unregister,
     formState: { errors },
   } = useForm<Inputs>({ mode: "onChange" });
   const [isBusy, setIsBusy] = useState<boolean>(false);
@@ -154,6 +155,10 @@ const SignUpComponent = () => {
           setExpiredAt(new Date(expiresAt).getTime());
           toast.success("OTP sent to your email");
           setRegisterInfo(user);
+          unregister("confirmPassword");
+          unregister("password");
+          unregister("name");
+          unregister("email");
           setShowOtpField(true);
           setCooldown(60);
         }
