@@ -1,6 +1,6 @@
 import { AUTH_KEY } from "../constants/storage-key";
 import { AccessToken } from "../models/login";
-import { decodedToken, CustomJwtPayload } from "../utils/jwt";
+import { decodedToken } from "../utils/jwt";
 import {
   getFromLocalStorage,
   removeFromLocalStorage,
@@ -26,9 +26,8 @@ export type AuthUserInfo = {
   avatar?: string;
 };
 
-type DecodedAuthPayload = CustomJwtPayload & { _id?: string; avatar?: string };
-
-const buildUserInfo = (decodedData: DecodedAuthPayload): AuthUserInfo => ({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const buildUserInfo = (decodedData: any): AuthUserInfo => ({
   email: decodedData?.email || "",
   userId: decodedData?.userId || decodedData?._id || "",
   name: decodedData?.name || "",
@@ -37,34 +36,37 @@ const buildUserInfo = (decodedData: DecodedAuthPayload): AuthUserInfo => ({
   subscriptionType: decodedData?.subscriptionType || "free",
   exp: decodedData?.exp || 0,
   iat: decodedData?.iat || 0,
-  avatar: decodedData?.avatar,
+  avatar: decodedData?.avatar || "",
 });
 
-const getValidDecodedToken = (): AuthUserInfo | null => {
+const getValidDecodedToken = () => {
   const authToken = getFromLocalStorage(AUTH_KEY);
-  if (!authToken) return null;
 
-  try {
-    const decodedData = decodedToken(authToken);
-    if (!decodedData) {
+  if (authToken) {
+    try {
+      const decodedData = decodedToken(authToken);
+
+      if (!decodedData) {
+        removeFromLocalStorage(AUTH_KEY);
+        return null;
+      }
+
+      if (
+        typeof decodedData.exp === "number" &&
+        decodedData.exp <= Math.floor(Date.now() / 1000)
+      ) {
+        removeFromLocalStorage(AUTH_KEY);
+        return null;
+      }
+
+      return buildUserInfo(decodedData);
+    } catch (error) {
+      console.error("Invalid auth token:", error);
       removeFromLocalStorage(AUTH_KEY);
       return null;
     }
-
-    if (
-      typeof decodedData.exp === "number" &&
-      decodedData.exp <= Math.floor(Date.now() / 1000)
-    ) {
-      removeFromLocalStorage(AUTH_KEY);
-      return null;
-    }
-
-    return buildUserInfo(decodedData);
-  } catch (error) {
-    console.error("Invalid auth token:", error);
-    removeFromLocalStorage(AUTH_KEY);
-    return null;
   }
+  return null;
 };
 
 export const storeUserInfo = ({ accessToken }: AccessToken) => {
