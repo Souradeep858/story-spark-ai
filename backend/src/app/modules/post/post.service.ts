@@ -14,6 +14,7 @@ import paginationHelper from "../../../utils/pagination_helper";
 import { postSearchFields } from "./post.constant";
 import { SortOrder, Types } from "mongoose";
 import { GamificationService } from "../gamification/gamification.service";
+import { WritingStreakService } from "../gamification/writing_streak.service";
 
 const MAX_SEARCH_TERM_LENGTH = 100;
 const escapeRegex = (text: string): string => {
@@ -480,6 +481,8 @@ const updatePost = async (
   post.updatedBy = user._id;
   await post.save();
 
+  WritingStreakService.updateStreakAndUnlocks(String(user._id)).catch(console.error);
+
   return post;
 };
 
@@ -544,6 +547,7 @@ const remixStory = async (postId: string, prompt: string, token: ITokenPayload) 
   if (res) {
     user.postsCount += 1;
     await user.save();
+    WritingStreakService.updateStreakAndUnlocks(String(user._id)).catch(console.error);
   }
 
   return res;
@@ -573,6 +577,7 @@ const translateStory = async (postId: string, language: string, token: ITokenPay
   if (res) {
     user.postsCount += 1;
     await user.save();
+    WritingStreakService.updateStreakAndUnlocks(String(user._id)).catch(console.error);
   }
 
   return res;
