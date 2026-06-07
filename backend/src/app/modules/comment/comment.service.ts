@@ -1,7 +1,7 @@
 import ApiError from "../../../errors/api_error";
 import { ITokenPayload } from "../../../interfaces/token";
 import { User } from "../user/user.model";
-import { IComment, ICommentPayload } from "./comment.interface";
+import { IComment, ICommentDTO, ICommentPayload, ILeanComment } from "./comment.interface";
 import httpStatus from "http-status";
 import { Comment } from "./comment.model";
 import { Types } from "mongoose";
@@ -16,7 +16,6 @@ const createComment = async (
   if (!user) {
     throw new ApiError(httpStatus.BAD_REQUEST, "User not found!");
   }
-
   const post = await Post.findOne({
     _id: payload.postId,
     isDeleted: { $ne: true },
@@ -24,37 +23,27 @@ const createComment = async (
   if (!post) {
     throw new ApiError(httpStatus.BAD_REQUEST, "Post not found!");
   }
-
-  // Atomic $inc to avoid race condition on concurrent comment creation
+  // Use an atomic $inc update instead of the read-modify-write pattern.
+  // With concurrent requests, both would read the same commentsCount value
+  // and both would write count + 1, losing one increment per race.
+  // findByIdAndUpdate with $inc is a single atomic MongoDB operation.
   await Post.findByIdAndUpdate(post._id, { $inc: { commentsCount: 1 } });
-
   const commentData: Omit<IComment, "parentCommentId"> = {
     postId: new Types.ObjectId(payload.postId),
     userId: user._id,
     comment: payload.comment,
   };
-
   if (payload.parentCommentId) {
     (commentData as IComment).parentCommentId = new Types.ObjectId(
       payload.parentCommentId
     );
   }
-
   const res = await Comment.create(commentData);
   return res;
 };
 
 const getCommentsByPostId = async (postId: string) => {
-  // Use postId field (not post), ObjectId cast, populate correct fields,
-  // filter only top-level comments (no parentCommentId), sort newest first
-  const comments = await Comment.find({
-    postId: new Types.ObjectId(postId),
-    parentCommentId: { $exists: false },
-  })
-    .populate("userId", "name email profile.avatar")
-    .sort({ createdAt: -1 });
-
-  return comments;
+  return await Comment.find({ postId }).populate("userId", "name profile.avatar").sort({ createdAt: -1 });
 };
 
 const toggleCommentLike = async (commentId: string, token: ITokenPayload) => {
@@ -63,12 +52,10 @@ const toggleCommentLike = async (commentId: string, token: ITokenPayload) => {
   if (!user) {
     throw new ApiError(httpStatus.BAD_REQUEST, "User not found!");
   }
-
   const comment = await Comment.findById(commentId);
   if (!comment) {
     throw new ApiError(httpStatus.BAD_REQUEST, "Comment not found!");
   }
-
   const post = await Post.findOne({
     _id: comment.postId,
     isDeleted: { $ne: true },
@@ -76,10 +63,16 @@ const toggleCommentLike = async (commentId: string, token: ITokenPayload) => {
   if (!post) {
     throw new ApiError(httpStatus.NOT_FOUND, "Post not found!");
   }
-
-  // Atomic $addToSet / $pull to avoid race condition on concurrent like toggles.
-  // Read-modify-write would allow two concurrent requests to both see the like
-  // as absent and both add it, resulting in duplicate entries.
+  
+  // Replace the read-modify-write likes toggle with atomic MongoDB operators.
+  // The original pattern read likes, checked membership with includes, mutated
+  // the array, and saved. Two concurrent toggles by the same user can both pass
+  // the includes check (both see the ID absent), both push, and both save,
+  // resulting in a duplicate like entry.
+  //
+  // $addToSet adds the user ID only if it is not already present (like).
+  // $pull removes all matching entries (unlike). Both are atomic.
+  // Checking the current state first determines which operation to perform.
   const isCurrentlyLiked = await Comment.exists({
     _id: comment._id,
     likes: user._id,
@@ -92,7 +85,6 @@ const toggleCommentLike = async (commentId: string, token: ITokenPayload) => {
       : { $addToSet: { likes: user._id } },
     { new: true }
   );
-
   return updatedComment;
 };
 
@@ -127,6 +119,5 @@ export const CommentService = {
   createComment,
   getCommentsByPostId,
   toggleCommentLike,
-};
   deleteComment,
 };
