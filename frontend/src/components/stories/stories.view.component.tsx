@@ -1133,8 +1133,6 @@ ${content}
 
       const res = await generationRequest.unwrap();
 
-      if (!res || !Array.isArray(res.data)) {
-        throw new Error("Unexpected response format from the AI service.");
       // Guard check validation
       if (!res || !Array.isArray(res.data)) {
         throw new Error("Invalid response from server");
@@ -1142,29 +1140,19 @@ ${content}
 
       setEndingsCache((prev) => ({ ...prev, [selectedStory.uuid]: res.data }));
       toast.success("Alternate endings generated successfully!");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error("[StoriesView Alternate Ending Flow Failure]:", err);
-      const errObj = err as Record<string, any>;
-      const errorStatus = errObj?.status || errObj?.data?.status;
-      setError(
-        errorStatus
-          ? getErrorMessage(new ApiError(errorStatus, errObj?.data?.message || ""))
-          : getErrorMessage(err)
-      );
-      toast.error("Failed to generate alternate endings.");
-    } finally {
-      toast.dismiss(toastId);
-      setIsGeneratingEndings(false);
       const errorStatus = err?.status || err?.data?.status;
       const parsedMessage = errorStatus
         ? getErrorMessage(new ApiError(errorStatus, err?.data?.message || ""))
         : err?.message || "An unexpected failure occurred.";
-      
+
       setErrorMessage(parsedMessage);
       toast.error("Failed to generate alternate endings.");
     } finally {
       toast.dismiss(toastId);
-      setIsGeneratingEndings(false);
+      setIsGeneratingEndings(false); // Fixes infinite spinner
     }
   };
 
