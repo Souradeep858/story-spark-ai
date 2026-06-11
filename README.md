@@ -39,8 +39,8 @@
 ## About 🚀
 
 - story-spark-ai - [Website](https://storysparkai.vercel.app/)
-- **`StorySparkAi`** is an open-source platform designed to empower creative minds by generating and showcasing AI-crafted stories from user prompts in a simple, engaging way.
-- With **`StorySparkAi`**, users can input an idea, explore multiple story variations, save their favorites, and leverage AI analysis to enhance their creative writing journey.
+- **`StorySparkAI`** is an open-source platform designed to empower creative minds by generating and showcasing AI-crafted stories from user prompts in a simple, engaging way.
+- With **`StorySparkAI`**, users can input an idea, explore multiple story variations, save their favorites, and leverage AI analysis to enhance their creative writing journey.
 
 <a id="features"></a>
 
@@ -159,7 +159,7 @@ Variables marked **Yes** are required for local development. Variables marked **
 | `UNSPLASH_KEY_API_SECRET` | For images | Unsplash secret, required only for Unsplash image features that need it. |
 | `VERIFY_EMAIL` | For email | SMTP sender address, required only for email verification or email notifications. |
 | `VERIFY_PASSWORD` | For email | SMTP password or app password, required only for email verification or email notifications. |
-| `GOOGLE_CLIENT_ID` | For login with google | Google OAuth client ID from https://console.cloud.google.com, required only for Google login. |
+| `GOOGLE_CLIENT_ID` | For Login with Google | Google OAuth client ID from https://console.cloud.google.com, required only for Google login. |
 
 Example backend `.env`:
 
