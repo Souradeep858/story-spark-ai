@@ -7,27 +7,191 @@ import ApiError from "../../../errors/api_error";
 import httpStatus from "http-status";
 import { WriterApplication } from "../writer_application/writer_application.model";
 
-main
+const getDashboardAnalysis = async (userId: string, role: string) => {
+  // ── Admin / Super Admin: platform-wide statistics ────────────────────────
+  if (
+    role === ENUM_USER_ROLE.ADMIN ||
+    role === ENUM_USER_ROLE.SUPER_ADMIN
+  ) {
+    const [
+      totalUsers,
+      activeUsers,
+      blockedUsers,
+      totalPosts,
+      publishedPosts,
+      featuredPosts,
+      subscriptionCounts,
+      postsPerMonth,
+      topTopics,
+    ] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ status: USER_STATUS.ACTIVE }),
+      User.countDocuments({ status: USER_STATUS.BLOCKED }),
+      Post.countDocuments({ isDeleted: false }),
+      Post.countDocuments({ isDeleted: false, isPublished: true }),
+      Post.countDocuments({ isDeleted: false, isFeaturedPost: true }),
+      // Subscription breakdown
+      User.aggregate([
+        {
+          $group: {
+            _id: "$subscriptionType",
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      // Posts published per month (last 12 months)
+      Post.aggregate([
+        { $match: { isDeleted: false, isPublished: true } },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$publishedAt" },
+              month: { $month: "$publishedAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { "_id.year": -1, "_id.month": -1 } },
+        { $limit: 12 },
+      ]),
+      // Top topics across all posts
+      Post.aggregate([
+        { $match: { isDeleted: false } },
+        { $unwind: "$topic" },
+        {
+          $group: {
+            _id: "$topic.title",
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]),
+    ]);
+
+    const subscriptionMap: Record<string, number> = {};
+    for (const s of subscriptionCounts) {
+      subscriptionMap[s._id as string] = s.count;
+    }
 
     return {
       role,
-      writerStats: {
-        totalReaders,
-        totalPosts,
-        subscriptionStatus: user.subscriptionType.toUpperCase(),
-        applicationStatus,
-        gamification: user.gamification || { xp: 0, level: 1, streak: 0, badges: [] },
+      platformStats: {
+        users: {
+          total: totalUsers,
+          active: activeUsers,
+          blocked: blockedUsers,
+        },
+        subscriptions: {
+          free: subscriptionMap[SUBSCRIPTION_TYPE.FREE] ?? 0,
+          pro: subscriptionMap[SUBSCRIPTION_TYPE.PRO] ?? 0,
+          premium: subscriptionMap[SUBSCRIPTION_TYPE.PREMIUM] ?? 0,
+        },
+        posts: {
+          total: totalPosts,
+          published: publishedPosts,
+          featured: featuredPosts,
+          perMonth: postsPerMonth,
+          topTopics,
+        },
       },
-      posts: {
-        perMonth: postsPerMonth,
-        topics: topicCount,
-      }
     };
   }
 
-  // Else standard user
+  // ── Writer / User: fetch the requesting user ──────────────────────────────
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  // Latest writer application status (if any)
+  const latestApplication = await WriterApplication.findOne({ user: userId })
+    .sort({ createdAt: -1 })
+    .lean();
+  const applicationStatus = latestApplication?.status ?? "not_applied";
+
+  // ── Writer: reader & publication metrics ──────────────────────────────────
+  if (role === ENUM_USER_ROLE.WRITER) {
+    const [readerResult, totalPosts, postsPerMonth, topicCount] =
+      await Promise.all([
+        // Total readers = sum of viewsCount on this author's posts
+        Post.aggregate([
+          { $match: { author: user._id, isDeleted: false } },
+          { $group: { _id: null, totalReaders: { $sum: "$viewsCount" } } },
+        ]),
+        Post.countDocuments({ author: user._id, isDeleted: false }),
+        // Monthly publishing history (last 12 months)
+        Post.aggregate([
+          {
+            $match: {
+              author: user._id,
+              isDeleted: false,
+              isPublished: true,
+            },
+          },
+          {
+            $group: {
+              _id: {
+                year: { $year: "$publishedAt" },
+                month: { $month: "$publishedAt" },
+              },
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { "_id.year": -1, "_id.month": -1 } },
+          { $limit: 12 },
+        ]),
+        // Topic distribution across writer's posts
+        Post.aggregate([
+          { $match: { author: user._id, isDeleted: false } },
+          { $unwind: "$topic" },
+          {
+            $group: {
+              _id: "$topic.title",
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { count: -1 } },
+          { $limit: 10 },
+        ]),
+      ]);
+
+    const totalReaders: number = readerResult[0]?.totalReaders ?? 0;
+
+    return {
+      role,
+      userStats: {
+        subscriptionStatus: user.subscriptionType.toUpperCase(),
+        applicationStatus,
+        gamification: user.gamification ?? {
+          xp: 0,
+          level: 1,
+          streak: 0,
+          badges: [],
+        },
+      },
+      writerStats: {
+        readers: totalReaders,
+        posts: totalPosts,
+        monthlyPublishing: postsPerMonth,
+        topicStats: topicCount,
+      },
+    };
+  }
+
+  // ── Standard User: subscription & gamification stats ─────────────────────
   return {
-main
+    role,
+    userStats: {
+      subscriptionStatus: user.subscriptionType.toUpperCase(),
+      applicationStatus,
+      gamification: user.gamification ?? {
+        xp: 0,
+        level: 1,
+        streak: 0,
+        badges: [],
+      },
+    },
   };
 };
 
