@@ -85,7 +85,7 @@ const EmailValidationComponent = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center relative overflow-hidden px-4">
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center relative overflow-hidden px-4 box-border">
       {/* Ambient glows */}
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600/20 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-600/20 rounded-full blur-[120px] pointer-events-none" />
@@ -99,7 +99,7 @@ const EmailValidationComponent = () => {
         ← Back to Home
       </button>
       
-      <div className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 shadow-2xl w-full max-w-md relative z-10">
+      <div className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 sm:p-8 shadow-2xl w-full max-w-md min-w-0 box-border overflow-hidden relative z-10">
         <h2 className="text-3xl font-bold tracking-tight text-slate-200 mb-3 text-center">
           Verify your email
         </h2>
@@ -109,7 +109,7 @@ const EmailValidationComponent = () => {
         </p>
         
         <form
-          className="space-y-4"
+          className="space-y-4 w-full min-w-0 box-border"
           onSubmit={(e) => {
             e.preventDefault();
             onVerify();
