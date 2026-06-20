@@ -1,5 +1,6 @@
 import CharacterProfileCard from "./CharacterProfileCard";
 import StoryMoodDashboard from "./StoryMoodDashboard";
+import StoryTitleSuggestions from "./StoryTitleSuggestions";
 import { CharacterProfile } from "./stories.utils";
 import { getShortenedText, ITopicData, topicsData } from "./stories.utils";
 import React, { useEffect, useState, useRef, useMemo } from "react";
@@ -756,6 +757,27 @@ useEffect(() => {
       setTimeout(() => setIsCopied(false), 2000);
     }
   };
+
+  const handleApplyTitle = (newTitle: string) => {
+  if (!selectedStory) return;
+
+  const updatedStory = {
+    ...selectedStory,
+    title: newTitle,
+  };
+
+  setSelectedStory(updatedStory);
+
+  setStories(
+    stories.map((story) =>
+      story.uuid === selectedStory.uuid
+        ? updatedStory
+        : story
+    )
+  );
+
+  toast.success("Story title updated!");
+};
 
   const handleExport = async (format: "pdf" | "epub") => {
     if (!selectedStory) return;
@@ -2174,6 +2196,17 @@ const handleGenerateCharacterProfile = async () => {
             title={selectedStory.title}
             narrationState={narrationState}
             narrationWordIndex={narrationWordIndex}
+            onNavigate={(wordIndex) => {
+              console.log("Navigate to story word:", wordIndex);
+
+              // You can add scrolling logic here
+              if (storyContentRef.current) {
+                storyContentRef.current.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                });
+              }
+            }}
           />
 
           <div className="mb-5">
