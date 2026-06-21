@@ -20,6 +20,7 @@ import BookmarkButton from "../BookmarkButton";
 import AudioPlayer from "../AudioPlayer";
 
 import { formatDateShort } from "../../utils/time-formate";
+import { calculateReadingTime } from "../../utils/reading-time";
 import { getUserInfo } from "../../services/auth.service";
 
 import { useToggleReactionMutation } from "../../redux/apis/reaction.api";
@@ -354,11 +355,18 @@ const PostDetailsComponent = () => {
                 <h1 className={`text-4xl font-bold text-slate-900 dark:text-gray-300 leading-tight ${post?.language ? "mb-2" : "mb-6"}`}>
                   {post?.title}
                 </h1>
-                {post?.language && (
+                {(post?.language || post?.content) && (
                   <div className="flex gap-2 mb-6">
-                    <span className="inline-flex items-center rounded-full bg-blue-950/60 text-blue-300 border border-blue-700/50 py-1 px-3 text-xs font-semibold">
-                      🌐 {post.language}
-                    </span>
+                    {post?.language && (
+                      <span className="inline-flex items-center rounded-full bg-blue-950/60 text-blue-300 border border-blue-700/50 py-1 px-3 text-xs font-semibold">
+                        🌐 {post.language}
+                      </span>
+                    )}
+                    {post?.content && (
+                      <span className="inline-flex items-center rounded-full bg-slate-700/60 text-slate-300 border border-slate-600/50 py-1 px-3 text-xs font-semibold gap-1 select-none">
+                        ⏱️ {calculateReadingTime(post.content)} min read
+                      </span>
+                    )}
                   </div>
                 )}
 

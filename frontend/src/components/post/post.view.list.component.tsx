@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Post } from "../../models/post";
 import BookmarkButton from "../BookmarkButton";
 import SSProfile from "../ui-component/ss-profile/ss-profile";
+import { calculateReadingTime } from "../../utils/reading-time";
 
 interface IExploreViewListComponentProps {
   posts: Post[];
@@ -29,12 +30,6 @@ const ExploreViewListComponent: React.FC<IExploreViewListComponentProps> = ({
       month: "short",
       day: "2-digit",
     });
-  };
-
-  const calculateReadingTime = (content: string): number => {
-    if (!content) return 1;
-    const words = content.trim().split(/\s+/).length;
-    return Math.max(1, Math.ceil(words / 200));
   };
 
   if (isLoading) {

@@ -1,5 +1,6 @@
-﻿import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { getShortenedText, ITopicData, topicsData, getWordCount, SELECTED_TOPIC_CLASSES } from "./stories.utils";
+import { calculateReadingTime } from "../../utils/reading-time";
 import toast, { Toaster } from "react-hot-toast";
 import { useCreatePostMutation, useDeletePostMutation } from "../../redux/apis/post.api";
 import { useGetProfileInfoQuery } from "../../redux/apis/user.api";
@@ -700,11 +701,6 @@ const handleExportMarkdown = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const calculateReadingTime = (content: string): number => {
-    const words = getWordCount(content);
-    return Math.max(1, Math.ceil(words / 200));
   };
 
   const isNarrationActive = narrationState !== "idle";
