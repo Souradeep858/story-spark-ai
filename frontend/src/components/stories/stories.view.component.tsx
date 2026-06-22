@@ -13,6 +13,7 @@ import jsPDF from "jspdf";
 import StoryTranslator from "../translate/StoryTranslator";
 import StoryEndingGenerator from "./StoryEndingGenerator";
 import StoryImprovementSuggestions from "./StoryImprovementSuggestions";
+import StoryRecommendations from "./StoryRecommendations";
 
 export interface IStories {
   uuid: string;
@@ -51,6 +52,7 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
   const [showGenreTransformation, setShowGenreTransformation] = useState<boolean>(false);
   const [showEndingGenerator, setShowEndingGenerator] = useState(false);
   const [showImprovementPanel, setShowImprovementPanel] = useState(false);
+  const [showRecommendations, setShowRecommendations] = useState(false);
 
   useEffect(() => {
     setSelectTopics(topics.filter((topic) => topic.selected));
@@ -327,6 +329,13 @@ const handleGenerateCharacterProfile = async () => {
                     >
                       🌍 Translate
                     </button>
+                    <button
+                      type="button"
+                      className="rounded-lg px-4 py-2 bg-orange-700 text-white font-semibold hover:bg-orange-600 transition-colors"
+                      onClick={() => setShowRecommendations(true)}
+                    >
+                      📚 Recommendations
+                    </button>
                   </>
                 )}
                 <button
@@ -580,6 +589,17 @@ const handleGenerateCharacterProfile = async () => {
       content: selectedStory.content,
     }}
     onClose={() => setShowImprovementPanel(false)}
+  />
+)}
+
+{showRecommendations && selectedStory && (
+  <StoryRecommendations
+    story={{
+      title: selectedStory.title,
+      content: selectedStory.content,
+      tag: selectedStory.tag,
+    }}
+    onClose={() => setShowRecommendations(false)}
   />
 )}
       <Toaster position="top-right" reverseOrder={false} />
